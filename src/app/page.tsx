@@ -1,7 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
 import { ToDoListAbi, ToDoListAddress } from "@/utils";
+
+import { Eip1193Provider } from "ethers";
+
+// Define the shape of the injected ethereum object
+declare global {
+  interface Window {
+    ethereum: Eip1193Provider;
+  }
+}
 
 type ToDo = {
   id: bigint;
@@ -25,12 +34,12 @@ const Home = () => {
     if(isLoading) return;
 
     try{
-      if(!(window as any).ethereum){
+      if(!window.ethereum){
         alert("Please install MetaMask!");
         return;
       }
       setIsLoading(true);
-      const accounts = await (window as any).ethereum.request({method: "eth_requestAccounts"});
+      const accounts = await (window.ethereum.request({method: "eth_requestAccounts"}));
       if(accounts.length > 0){
         setCurrentAccount(accounts[0]);
       }
@@ -41,10 +50,10 @@ const Home = () => {
       }
     };
 
-    const fetchTodos = async () => {
+    const fetchTodos = useCallback(async () => {
       if (!currentAccount) return;
       try {
-          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const provider = new ethers.BrowserProvider(window.ethereum);
           const contract = new ethers.Contract(ToDoListAddress, ToDoListAbi, provider);
 
           console.log("Contract:", contract);
@@ -80,7 +89,7 @@ const Home = () => {
       } finally {
           setIsFetchingTodos(false);
       }
-  };
+  }, [currentAccount]);
 
     const createTodo = async (event: React.FormEvent) => {
       event.preventDefault();
@@ -97,7 +106,7 @@ const Home = () => {
           alert("Deadline must be in the future!");
           return;
         }
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const contract = new ethers.Contract(ToDoListAddress, ToDoListAbi, signer);
         // Create a date object from the input
@@ -124,7 +133,7 @@ const Home = () => {
           alert("Please connect your wallet first!");
           return;
         }
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const contract = new ethers.Contract(ToDoListAddress, ToDoListAbi, signer);
         setIsTogglingCompleted(true);
@@ -140,7 +149,7 @@ const Home = () => {
 
     const deleteTodo = async (todoId: bigint) => {
       try {
-          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const provider = new ethers.BrowserProvider(window.ethereum);
           const signer = await provider.getSigner();
           const contract = new ethers.Contract(ToDoListAddress, ToDoListAbi, signer);
   
@@ -155,8 +164,8 @@ const Home = () => {
 
     useEffect(() => {
       const checkWalletConnection = async () => {
-        if ((window as any).ethereum) {
-          const accounts = await (window as any).ethereum.request({ method: "eth_accounts" });
+        if (window.ethereum) {
+          const accounts = await (window.ethereum.request({ method: "eth_accounts" }));
           if (accounts.length > 0) {
             setCurrentAccount(accounts[0]);
           }
@@ -169,7 +178,7 @@ const Home = () => {
       if(currentAccount){
         fetchTodos();
       }
-    }, [currentAccount]);
+    }, [currentAccount, fetchTodos]);
   
     return (
       <main className="flex min-h-screen flex-col items-center p-8">
